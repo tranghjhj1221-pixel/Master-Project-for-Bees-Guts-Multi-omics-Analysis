@@ -3,7 +3,7 @@ library(dplyr)
 library(stringr)
 
 # 1) read the TSV file
-pg <- read_tsv("C:/Trang/outputtrial2/report.pg_matrix.tsv")
+pg <- read_tsv("report.pg_matrix.tsv")
 
 # 2) inspect column names
 colnames(pg)
@@ -245,3 +245,98 @@ pg_multi <- pg_final %>%
       TRUE ~ "Shared_or_mixed"
     )
   )
+
+# Check out for skewness?
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+
+# 1) subset relevant columns
+pg_subset <- pg_final %>%
+  select(Genes, Crop, Hind, Mid)
+
+# 2) melt (pivot longer)
+pg_long <- melt(
+  pg_subset,
+  id.vars = "Genes",
+  variable.name = "Sample",
+  value.name = "Intensity"
+)
+
+# 3) remove NA
+pg_long <- pg_long %>%
+  filter(!is.na(Intensity))
+
+# 4) log2 transform
+pg_long <- pg_long %>%
+  mutate(log2_Intensity = log2(Intensity + 1))
+
+# 5) density plot
+ggplot(pg_long, aes(x = log2_Intensity, fill = Sample)) +
+  geom_density(alpha = 0.4) +
+  theme_minimal() +
+  labs(
+    title = "Protein intensity distribution (log2)",
+    x = "log2 Intensity",
+    y = "Density"
+  )
+#Log2 Histogram looks great, cannot do qqplot here
+
+###Heatmap Inspection
+library(dplyr)
+install.packages("pheatmap")
+library(pheatmap)
+library(tibble)
+
+#creating matrix
+
+mat <- pg_final %>%
+  mutate(
+    row_id = ifelse(is.na(Genes) | Genes == "", Protein.Group, Genes),
+    row_id = make.unique(row_id)
+  ) %>%
+  select(row_id, Crop, Hind, Mid) %>%
+  column_to_rownames("row_id") %>%
+  as.matrix()
+
+
+# 2) log2 transform
+mat_log <- log2(mat + 1)
+
+# 3) select top variable proteins
+top_var <- apply(mat_log, 1, var, na.rm = TRUE) %>%
+  sort(decreasing = TRUE) %>%
+  head(100)
+
+view(top_var)
+
+mat_top <- mat_log[names(top_var), ]
+
+# 4) simple imputation for plotting (low value)
+mat_top[is.na(mat_top)] <- min(mat_top, na.rm = TRUE) - 1 
+
+
+# 5) row scaling (important!)
+mat_scaled <- t(scale(t(mat_top)))
+#here, I'm comparing Crop, Mid, and Hind protein intensity for that protein, there is no benchmarking done yet
+#not sure if I'll trust the z-score here, this is a rough estimate
+#Let's try both heatmap
+
+# lets try both heatmaps
+
+pheatmap(
+  mat_scaled,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  show_rownames = TRUE,
+  main = "Top variable proteins"
+)
+
+
+pheatmap(
+  mat_top,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  show_rownames = TRUE,
+  main = "Top variable proteins"
+)
