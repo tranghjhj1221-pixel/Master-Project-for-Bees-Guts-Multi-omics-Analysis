@@ -409,58 +409,28 @@ write.csv(top20_hind_enriched, "top20_hind_enriched.csv", row.names = FALSE)
 
 ##LIMMA  has not been used here therefore the pvalues for GO term enrichment was FAKED by using the rank-based score 
   # I FAKE PVALUES HERE TO TEST OUT THE WORKFLOW
-#MID
+#create a geneScore with the fake pValues
 mid_erminej <- top20_mid_enriched %>%
   mutate(
     rank = row_number(desc(mid_score)),
-    fake_p = rank^2 / (n() + 1)^2 ##basicially taking the rank devided by 21 (out of my top20 table) and square it so that it looks like pvalues
+    fake_p = rank^6 / (n() + 1)^6 #basically using rank/21 (in top 20) and ^6 to imitate p values
   ) %>%
-  select(Genes, fake_p)
+  select(Protein.Group, fake_p)
 
 write.table(
   mid_erminej,
-  file = "mid_erminej_input.txt",
+  file = "mid_erminej_input_geneScores.txt",
   sep = "\t",
   row.names = FALSE,
+  col.names = FALSE,
   quote = FALSE
 )
-#HIND
-hind_erminej <- top20_hind_enriched %>%
-  mutate(
-    rank = row_number(desc(hind_score)),
-    fake_p = rank^2 / (n() + 1)^2 
-  ) %>%
-  select(Genes, fake_p)
-
-write.table(
-  hind_erminej,
-  file = "hind_erminej_input.txt",
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
-
-#CROP
-crop_erminej <- top20_crop_enriched %>%
-  mutate(
-    rank = row_number(desc(crop_score)),
-    fake_p = rank^2 / (n() + 1)^2
-  ) %>%
-  select(Genes, fake_p)
-
-write.table(
-  crop_erminej,
-  file = "crop_erminej_input.txt",
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
-
-View(crop_erminej)
-head(pg_final$Genes)
+View(mid_erminej)
+sum(top20_mid_enriched$Protein.Group %in% erminej_anno$probe_id)
 
 
-## eDIT YOUR 
+
+## eDIT YOUR UniProte file here for proper ermineJ input
 library(dplyr)
 library(readr)
 library(stringr)
@@ -486,3 +456,4 @@ write.table(
 )
 sum(erminej_anno$probe_id %in% pg_final$Protein.Group) #This should be >>0 otherwise it wouldnt run on ErmineJ
 View(erminej_anno)
+
